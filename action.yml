@@ -17,12 +17,8 @@ runs:
   steps:
     - name: Download RunReveal CLI
       id: download-runreveal
-      run: curl -O https://github.com/runreveal/homebrew-runreveal/releases/latest/download/runreveal-linux-amd64.tar.gz 
-      shell: bash
-
-    - name: Extract RunReveal CLI
-      id: extract-runreveal
       run: |
+        curl -L https://github.com/runreveal/homebrew-runreveal/releases/latest/download/runreveal-linux-amd64.tar.gz > runreveal-linux-amd64.tar.gz
         tar -xvf runreveal-linux-amd64.tar.gz
         chmod +x runreveal
         rm runreveal-linux-amd64.tar.gz
