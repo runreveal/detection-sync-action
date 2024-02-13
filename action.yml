@@ -1,0 +1,45 @@
+
+name: 'Sync RunReveal Detections'
+description: 'This will sync a given directory with your RunReveal detections.'
+inputs:
+  directory:
+    description: 'The directory to upload to RunReveal'
+    required: true
+    default: './'
+  token:
+    description: 'A RunReveal API token with access to edit detections.'
+    required: true
+  workspace:
+    description: 'The RunReveal workspace id to upload the detections to.'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Download RunReveal CLI
+      id: download-runreveal
+      run: curl -O https://github.com/runreveal/homebrew-runreveal/releases/latest/download/runreveal-linux-amd64.tar.gz 
+      shell: bash
+
+    - name: Extract RunReveal CLI
+      id: extract-runreveal
+      run: |
+        tar -xvf runreveal-linux-amd64.tar.gz
+        chmod +x runreveal
+        rm runreveal-linux-amd64.tar.gz
+      shell: bash
+
+    - name: Sync RunReveal Detections
+      run: ./runreveal detections sync -d $INPUT_DIRECTORY
+      shell: bash
+      env:
+        RUNREVEAL_TOKEN: ${{ inputs.token }}
+        RUNREVEAL_WORKSPACE: ${{ inputs.workspace }}
+        INPUT_DIRECTORY: ${{ inputs.directory }}
+
+    - name: Delete RunReveal CLI
+      run: rm runreveal
+      shell: bash
+
+branding:
+  icon: upload-cloud
+  color: blue
