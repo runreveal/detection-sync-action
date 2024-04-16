@@ -29,7 +29,7 @@ runs:
       shell: bash
 
     - name: Sync RunReveal Detections
-      if: ${{ inputs.dryrun == 'false' }}
+      if: ${{ inputs.dry-run == 'false' }}
       run: ./runreveal detections sync -d $INPUT_DIRECTORY
       shell: bash
       env:
