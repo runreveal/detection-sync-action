@@ -12,6 +12,10 @@ inputs:
   workspace:
     description: 'The RunReveal workspace id to upload the detections to.'
     required: true
+  dry-run:
+    description: 'Test the sync process without making changes to your detections.'
+    required: false
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -25,7 +29,17 @@ runs:
       shell: bash
 
     - name: Sync RunReveal Detections
+      if: ${{ inputs.dryrun == 'false' }}
       run: ./runreveal detections sync -d $INPUT_DIRECTORY
+      shell: bash
+      env:
+        RUNREVEAL_TOKEN: ${{ inputs.token }}
+        RUNREVEAL_WORKSPACE: ${{ inputs.workspace }}
+        INPUT_DIRECTORY: ${{ inputs.directory }}
+
+    - name: Verify Sync RunReveal Detections
+      if: ${{ inputs.dry-run == 'true' }}
+      run: ./runreveal detections sync --dry-run -d $INPUT_DIRECTORY
       shell: bash
       env:
         RUNREVEAL_TOKEN: ${{ inputs.token }}
