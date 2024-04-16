@@ -20,4 +20,8 @@ A Github Action that will sync a given directory to your RunReveal detections in
     # The RunReveal workspace ID to sync the detections with.
     # This workspace should match the workspace the token was generated under.
     workspace: ${{ vars.RUNREVEAL_WORKSPACE }}
+
+    # Include this input to perform a dry run of the sync process.
+    # This will verify your detections without making any changes.
+    dry-run: true
 ```
