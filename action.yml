@@ -16,21 +16,35 @@ inputs:
     description: 'Test the sync process without making changes to your detections.'
     required: false
     default: 'false'
+  github-token:
+    description: 'GitHub token used to post PR comments on dry-run failures. Defaults to the workflow token.'
+    required: false
+    default: ${{ github.token }}
 runs:
   using: "composite"
   steps:
     - name: Download RunReveal CLI
       id: download-runreveal
       run: |
-        curl -L https://github.com/runreveal/homebrew-runreveal/releases/latest/download/runreveal-linux-amd64.tar.gz > runreveal-linux-amd64.tar.gz
+        set -eo pipefail
+        curl -fL https://github.com/runreveal/homebrew-runreveal/releases/latest/download/runreveal-linux-amd64.tar.gz > runreveal-linux-amd64.tar.gz
         tar -xvf runreveal-linux-amd64.tar.gz
         chmod +x runreveal
         rm runreveal-linux-amd64.tar.gz
       shell: bash
 
+    - name: Print versions
+      if: ${{ runner.debug == '1' }}
+      run: |
+        echo "Action: detection-sync-action@${{ github.action_ref }}"
+        echo "CLI: $(./runreveal --version)"
+      shell: bash
+
     - name: Sync RunReveal Detections
       if: ${{ inputs.dry-run == 'false' }}
-      run: ./runreveal detections sync -d $INPUT_DIRECTORY
+      run: |
+        set -eo pipefail
+        ./runreveal detections sync -d $INPUT_DIRECTORY
       shell: bash
       env:
         RUNREVEAL_TOKEN: ${{ inputs.token }}
@@ -38,16 +52,38 @@ runs:
         INPUT_DIRECTORY: ${{ inputs.directory }}
 
     - name: Verify Sync RunReveal Detections
+      id: dry-run-sync
       if: ${{ inputs.dry-run == 'true' }}
-      run: ./runreveal detections sync --dry-run -d $INPUT_DIRECTORY
+      run: |
+        set -eo pipefail
+        ./runreveal detections sync --dry-run -d $INPUT_DIRECTORY 2>&1 | tee /tmp/dry-run-output.log
       shell: bash
       env:
         RUNREVEAL_TOKEN: ${{ inputs.token }}
         RUNREVEAL_WORKSPACE: ${{ inputs.workspace }}
         INPUT_DIRECTORY: ${{ inputs.directory }}
 
+    - name: Comment dry-run error on PR
+      if: ${{ failure() && steps.dry-run-sync.outcome == 'failure' && github.event_name == 'pull_request' }}
+      run: |
+        set -eo pipefail
+        BODY=$(cat <<INNEREOF
+        **Detection sync dry-run failed**
+
+        \`\`\`
+        $(cat /tmp/dry-run-output.log)
+        \`\`\`
+        INNEREOF
+        )
+        gh pr comment "$PR_NUMBER" --body "$BODY"
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+
     - name: Delete RunReveal CLI
-      run: rm runreveal
+      if: always()
+      run: rm -f runreveal
       shell: bash
 
 branding:
