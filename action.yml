@@ -16,6 +16,10 @@ inputs:
     description: 'Test the sync process without making changes to your detections.'
     required: false
     default: 'false'
+  github-token:
+    description: 'GitHub token used to post PR comments on dry-run failures. Defaults to the workflow token.'
+    required: false
+    default: ${{ github.token }}
 runs:
   using: "composite"
   steps:
@@ -48,15 +52,34 @@ runs:
         INPUT_DIRECTORY: ${{ inputs.directory }}
 
     - name: Verify Sync RunReveal Detections
+      id: dry-run-sync
       if: ${{ inputs.dry-run == 'true' }}
       run: |
         set -eo pipefail
-        ./runreveal detections sync --dry-run -d $INPUT_DIRECTORY
+        ./runreveal detections sync --dry-run -d $INPUT_DIRECTORY 2>&1 | tee /tmp/dry-run-output.log
       shell: bash
       env:
         RUNREVEAL_TOKEN: ${{ inputs.token }}
         RUNREVEAL_WORKSPACE: ${{ inputs.workspace }}
         INPUT_DIRECTORY: ${{ inputs.directory }}
+
+    - name: Comment dry-run error on PR
+      if: ${{ failure() && steps.dry-run-sync.outcome == 'failure' && github.event_name == 'pull_request' }}
+      run: |
+        set -eo pipefail
+        BODY=$(cat <<INNEREOF
+        **Detection sync dry-run failed**
+
+        \`\`\`
+        $(cat /tmp/dry-run-output.log)
+        \`\`\`
+        INNEREOF
+        )
+        gh pr comment "$PR_NUMBER" --body "$BODY"
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
 
     - name: Delete RunReveal CLI
       if: always()
